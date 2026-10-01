@@ -1,0 +1,207 @@
+# huddle — fully self-hosted. Just run:  docker compose up -d
+# Secrets (DB password, JWT keys) are generated on first start into the
+# `huddle-secrets` volume. Optional settings: copy .env.example to .env.
+
+services:
+  secrets:
+    image: node:22-alpine
+    command: ["node", "/gen/generate.mjs"]
+    volumes:
+      - ./docker/secrets:/gen:ro
+      - huddle-secrets:/secrets
+    restart: "no"
+
+  db:
+    image: supabase/postgres:15.8.1.060
+    restart: unless-stopped
+    depends_on:
+      secrets: { condition: service_completed_successfully }
+    entrypoint: ["bash", "-c"]
+    command:
+      - >-
+        set -a; . /secrets/env; set +a;
+        export PGPASSWORD=$$POSTGRES_PASSWORD POSTGRES_DB=postgres POSTGRES_HOST=/var/run/postgresql PGPORT=5432 POSTGRES_PORT=5432 PGDATABASE=postgres JWT_EXP=3600;
+        exec docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf -c log_min_messages=fatal -c max_connections=300
+    volumes:
+      - huddle-secrets:/secrets:ro
+      - huddle-db:/var/lib/postgresql/data
+      - ./docker/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:ro
+      - ./docker/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  auth:
+    image: supabase/gotrue:v2.177.0
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        set -a; . /secrets/env; set +a;
+        export GOTRUE_DB_DATABASE_URL="postgres://supabase_auth_admin:$$POSTGRES_PASSWORD@db:5432/postgres" GOTRUE_JWT_SECRET="$$JWT_SECRET";
+        exec auth
+    volumes:
+      - huddle-secrets:/secrets:ro
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${PUBLIC_API_URL:-http://localhost:8000}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_SITE_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
+      GOTRUE_URI_ALLOW_LIST: ${PUBLIC_APP_URL:-http://localhost:3000}/**
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: "false"
+      GOTRUE_MAILER_AUTOCONFIRM: ${MAILER_AUTOCONFIRM:-true}
+      GOTRUE_SMTP_HOST: ${SMTP_HOST:-}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT:-587}
+      GOTRUE_SMTP_USER: ${SMTP_USER:-}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS:-}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL:-}
+      GOTRUE_SMTP_SENDER_NAME: huddle
+      GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/v1/verify
+      GOTRUE_EXTERNAL_GOOGLE_ENABLED: ${ENABLE_GOOGLE_AUTH:-false}
+      GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: ${PUBLIC_API_URL:-http://localhost:8000}/auth/v1/callback
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9999/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  rest:
+    image: postgrest/postgrest:v12.2.12
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    command: ["postgrest", "/secrets/postgrest.conf"]
+    volumes:
+      - huddle-secrets:/secrets:ro
+
+  realtime:
+    image: supabase/realtime:v2.34.47
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    networks:
+      default:
+        aliases: [realtime-dev.supabase-realtime]
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        set -a; . /secrets/env; set +a;
+        export DB_PASSWORD="$$POSTGRES_PASSWORD" API_JWT_SECRET="$$JWT_SECRET";
+        exec /app/run.sh /app/bin/server
+    volumes:
+      - huddle-secrets:/secrets:ro
+    environment:
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: supabase_admin
+      DB_NAME: postgres
+      DB_AFTER_CONNECT_QUERY: "SET search_path TO _realtime"
+      ERL_AFLAGS: -proto_dist inet_tcp
+      DNS_NODES: "''"
+      RLIMIT_NOFILE: "10000"
+      APP_NAME: realtime
+      SEED_SELF_HOST: "true"
+      RUN_JANITOR: "true"
+
+  storage:
+    image: supabase/storage-api:v1.25.7
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+      rest: { condition: service_started }
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        set -a; . /secrets/env; set +a;
+        export SERVICE_KEY="$$SERVICE_ROLE_KEY" AUTH_JWT_SECRET="$$JWT_SECRET" PGRST_JWT_SECRET="$$JWT_SECRET"
+        DATABASE_URL="postgres://supabase_storage_admin:$$POSTGRES_PASSWORD@db:5432/postgres";
+        exec docker-entrypoint.sh node dist/start/server.js
+    volumes:
+      - huddle-secrets:/secrets:ro
+      - huddle-storage:/var/lib/storage
+    environment:
+      POSTGREST_URL: http://rest:3000
+      FILE_SIZE_LIMIT: 52428800
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: stub
+      REGION: stub
+      GLOBAL_S3_BUCKET: stub
+      ENABLE_IMAGE_TRANSFORMATION: "false"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5000/status"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    image: supabase/postgres:15.8.1.060
+    depends_on:
+      auth: { condition: service_healthy }
+      storage: { condition: service_healthy }
+    entrypoint: ["sh", "/docker/migrate.sh"]
+    volumes:
+      - huddle-secrets:/secrets:ro
+      - ./docker/db:/docker:ro
+      - ./drizzle/migrations:/migrations:ro
+    restart: "no"
+
+  kong:
+    image: kong:2.8.1
+    restart: unless-stopped
+    depends_on:
+      auth: { condition: service_started }
+      rest: { condition: service_started }
+    ports:
+      - "${API_PORT:-8000}:8000"
+    entrypoint: ["bash", "-c"]
+    command:
+      - >-
+        set -a; . /secrets/env; set +a;
+        eval "echo \"$$(cat /home/kong/temp.yml)\"" > /home/kong/kong.yml && exec /docker-entrypoint.sh kong docker-start
+    volumes:
+      - huddle-secrets:/secrets:ro
+      - ./docker/kong.yml:/home/kong/temp.yml:ro
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+
+  huddle:
+    build: .
+    image: huddle:latest
+    restart: unless-stopped
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      kong: { condition: service_started }
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - huddle-secrets:/secrets:ro
+    environment:
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8000}
+      ENABLE_GOOGLE_AUTH: ${ENABLE_GOOGLE_AUTH:-false}
+      DONATE_URL: ${DONATE_URL:-https://github.com/sponsors/orendrasingh}
+
+volumes:
+  huddle-secrets:
+  huddle-db:
+  huddle-storage:

@@ -1,0 +1,191 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ink: var(--ink);
+  --color-btn: var(--btn);
+  --color-btn-foreground: var(--btn-foreground);
+  --color-a1: var(--a1);
+  --color-a2: var(--a2);
+  --color-a3: var(--a3);
+  --color-a4: var(--a4);
+  --color-a5: var(--a5);
+  --color-a6: var(--a6);
+  --color-on-answer: var(--on-answer);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 1rem;
+  --background: oklch(0.975 0.018 85);
+  --foreground: oklch(0.24 0.03 45);
+  --ink: oklch(0.24 0.03 45);
+  --card: oklch(0.995 0.008 85);
+  --card-foreground: oklch(0.24 0.03 45);
+  --popover: oklch(0.995 0.008 85);
+  --popover-foreground: oklch(0.24 0.03 45);
+  --primary: oklch(0.66 0.19 38);
+  --primary-foreground: oklch(0.99 0.01 85);
+  --secondary: oklch(0.93 0.035 80);
+  --secondary-foreground: oklch(0.28 0.03 45);
+  --muted: oklch(0.94 0.025 82);
+  --muted-foreground: oklch(0.5 0.03 55);
+  --accent: oklch(0.86 0.15 88);
+  --accent-foreground: oklch(0.26 0.04 55);
+  --destructive: oklch(0.6 0.21 25);
+  --destructive-foreground: oklch(0.99 0.01 85);
+  --success: oklch(0.66 0.15 155);
+  --border: oklch(0.88 0.03 75);
+  --input: oklch(0.88 0.03 75);
+  --ring: oklch(0.66 0.19 38);
+  --a1: oklch(0.64 0.2 30);
+  --a2: oklch(0.62 0.12 200);
+  --a3: oklch(0.8 0.16 82);
+  --a4: oklch(0.55 0.15 330);
+  --a5: oklch(0.64 0.15 150);
+  --a6: oklch(0.58 0.14 265);
+  --on-answer: oklch(0.99 0.01 85);
+  --btn: oklch(0.66 0.19 38);
+  --btn-foreground: oklch(0.99 0.01 85);
+  --chart-1: var(--a1);
+  --chart-2: var(--a2);
+  --chart-3: var(--a3);
+  --chart-4: var(--a4);
+  --chart-5: var(--a5);
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--secondary);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    background-image: radial-gradient(
+      color-mix(in oklab, var(--foreground) 7%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 22px 22px;
+  }
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Tactile chunky button: sits on a solid shadow, presses down on tap. */
+@utility chunky {
+  box-shadow: 0 5px 0 0 color-mix(in oklab, currentColor 0%, var(--ink) 85%);
+  border: 2px solid var(--ink);
+  transition:
+    transform 120ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 120ms ease;
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 7px 0 0 var(--ink);
+  }
+  &:active:not(:disabled) {
+    transform: translateY(4px);
+    box-shadow: 0 1px 0 0 var(--ink);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+@utility card-ink {
+  border: 2px solid var(--ink);
+  box-shadow: 0 5px 0 0 var(--ink);
+  background: var(--card);
+}
+
+@keyframes pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-4deg); }
+  75% { transform: rotate(4deg); }
+}
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@utility animate-pop {
+  animation: pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@utility animate-wiggle {
+  animation: wiggle 500ms ease-in-out;
+}
+@utility animate-floaty {
+  animation: floaty 3s ease-in-out infinite;
+}
+
+@keyframes float-up {
+  0% { transform: translateY(0) scale(0.6); opacity: 0; }
+  15% { opacity: 1; transform: translateY(-40px) scale(1.15); }
+  100% { transform: translateY(-70vh) scale(1); opacity: 0; }
+}
+@utility animate-float-up {
+  animation: float-up 3.2s ease-out forwards;
+}

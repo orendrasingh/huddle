@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790802302072,
+      "tag": "0000_live_rooms",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790803917469,
+      "tag": "0001_accounts_quizzes_themes",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790803940831,
+      "tag": "0002_media_storage_policies",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790806525089,
+      "tag": "0003_answer_keys_and_hardening",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790830951412,
+      "tag": "0004_scope_live_room_reads",
+      "breakpoints": true
+    }
+  ]
+}

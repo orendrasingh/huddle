@@ -1,0 +1,10 @@
+node_modules
+.output
+dist
+.git
+.env
+.env.*
+!.env.example
+.lovable
+*.log
+tsconfig.tsbuildinfo
